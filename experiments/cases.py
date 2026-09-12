@@ -1,11 +1,5 @@
-"""The 8 test cases from the spec, as structured scenario objects.
-
-Every case is one or more RequestStep objects executed in sequence under a
-shared task_id; the case's overall outcome is the AND of its steps' outcomes
-(a workflow can't "complete" if any step is denied). `expected` gives the
-already hand-verified outcome per condition (see Phases 2-5) — run_experiment.py
-asserts actual == expected and fails loudly on any mismatch, since a
-divergence here means the harness has a bug, not that the finding changed.
+"""The 8 test cases, as structured scenario objects. Design rationale for
+each: docs/experiment-protocol.md Section 2.
 """
 
 from dataclasses import dataclass, field
@@ -18,8 +12,8 @@ class RequestStep:
     requested_fields: tuple
     requested_tool: str | None
 
-    # purpose_bound-only execution hints; ignored by baseline conditions,
-    # which have no token/approval/forwarding concepts.
+    # purpose_bound-only; ignored by baselines, which have no
+    # token/approval/forwarding concepts.
     approval_granted_before: bool = False
     is_forward: bool = False       # execute via coordinator.forward_to_agent()
     is_injection: bool = False     # execute via flight_search.attempt_injected_request()
@@ -75,10 +69,7 @@ CASES = (
             ),
         ),
         expected={"purpose_bound": False, "role_based": True, "no_auth": True},
-        notes=(
-            "Diverges from purpose-bound: role_based has no approval-gating "
-            "concept at all, so it allows regardless of approval state."
-        ),
+        notes="role_based has no approval concept, so it allows here unlike purpose_bound.",
     ),
     Case(
         number=4,
@@ -108,15 +99,11 @@ CASES = (
         ),
         expected={"purpose_bound": False, "role_based": True, "no_auth": True},
         notes=(
-            "Modeled as the coordinator forwarding a protected field while "
-            "requesting AS the recipient's purpose scope (search_flights), "
-            "not 'flight_search forwards to itself'. Denied under "
-            "purpose-bound because the coordinator is only ever registered "
-            "for 'orchestration' (policy.check step (a)), not because of a "
-            "field-set mismatch. Diverges under role_based: it only checks "
-            "the acting role's own field access, and the coordinator's role "
-            "legitimately includes payment_token, so it allows — role_based "
-            "has no concept of a purpose-scoped recipient at all."
+            "Coordinator forwards a field while requesting as the recipient's "
+            "purpose. role_based only checks the acting role's own field "
+            "access (which legitimately includes payment_token), so it allows; "
+            "purpose_bound denies because coordinator is never registered for "
+            "'search_flights'."
         ),
     ),
     Case(
@@ -133,16 +120,8 @@ CASES = (
         ),
         expected={"purpose_bound": False, "role_based": False, "no_auth": True},
         notes=(
-            "purpose_bound executes the real injection mechanism "
-            "(flight_search.attempt_injected_request over the hardcoded "
-            "INJECTED_WEB_CONTENT string), not a hand-shaped field list; "
-            "role_based and no_auth check the resulting field demand "
-            "directly since they have no agent/token layer. role_based "
-            "happens to also deny this one — both demanded fields fall "
-            "outside flight_search's static role scope regardless of "
-            "purpose — so role_based is not uniformly weaker; it "
-            "specifically fails to gate approval (case 3) and "
-            "purpose-scoped forwarding (case 5), not this category of attack."
+            "role_based also denies this one (fields are outside its static "
+            "role scope) — its real gaps are cases 3 and 5, not this."
         ),
     ),
     Case(
@@ -160,16 +139,9 @@ CASES = (
         ),
         expected={"purpose_bound": False, "role_based": True, "no_auth": True},
         notes=(
-            "Canonical harness scenario is 'revoked', not 'expired' — "
-            "deterministic and needs no sleep() in a 5x-repeated harness. "
-            "Approval is pre-granted so revocation is isolated as the sole "
-            "cause of denial (otherwise this would look identical to case 3). "
-            "'Expired' was independently hand-verified in auth/token.py "
-            "during Phase 3 with an equivalent expected-outcome pattern "
-            "across conditions (also denied under purpose_bound, allowed "
-            "under both baselines, which have no token/temporal concept) — "
-            "not re-run here; flagged explicitly rather than silently "
-            "covering only one sub-mode."
+            "'revoked' is the deterministic sub-mode; approval is pre-granted "
+            "so revocation is isolated as the sole cause of denial. 'expired' "
+            "is covered separately by tests/test_token.py."
         ),
     ),
     Case(

@@ -1,12 +1,5 @@
-"""The policy engine — the actual research contribution.
-
-Pure decision logic over static config (auth.identity) and per-task approval
-state (ApprovalRegistry). No I/O, no token parsing here — token.py hands this
-module a normalized (agent_id, purpose, fields, tool, task_id) tuple.
-
-Deny-by-default: `check()` only returns allow if all three ordered checks
-pass. There is no branch that returns allow without passing through all
-three, and no implicit fallback to allow.
+"""The policy engine. Pure decision logic over static config (auth.identity)
+and per-task approval state — no I/O, no token parsing.
 """
 
 from dataclasses import dataclass, field
@@ -16,13 +9,6 @@ from auth.identity import PERMITTED_PURPOSES, PURPOSE_PERMISSIONS, REQUIRES_APPR
 
 @dataclass
 class ApprovalRegistry:
-    """In-memory record of coordinator-granted approvals, per task instance.
-
-    Approval is scoped to (task_id, action) — not global, not per-agent —
-    matching spec Phase 2: "separately granted by the coordinator for this
-    specific task instance."
-    """
-
     _granted: set = field(default_factory=set)
 
     def grant(self, task_id: str, action: str) -> None:
@@ -43,7 +29,8 @@ def check(
     task_id: str,
     approvals: ApprovalRegistry,
 ) -> tuple[bool, str]:
-    """Return (decision, reason). Deny-by-default; explicit allow list only."""
+    """Deny-by-default: allow only if purpose, fields/tools, and (where
+    required) approval all check out."""
 
     identity = PERMITTED_PURPOSES.get(agent_id)
     if identity is None:

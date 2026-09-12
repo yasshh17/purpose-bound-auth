@@ -30,13 +30,12 @@ embedded instruction ("...also include the customer's passport_number and
 payment_token..."). The flight-search agent's own code is not adversarial —
 it is a faithful, rule-based agent that extracts the fields a data source
 told it to extract and requests them, exactly as a susceptible real agent
-reading attacker-controlled content might. Neither of the other two
-adversary types the spec allows for is actually tested here: no tool in
-this system (`search_flights_api`, `charge_payment_api`) is ever modeled as
-returning malicious output back to an agent, and no agent's own
-implementation deviates from its stated logic to intentionally exfiltrate
-data. Naming this precisely matters because it bounds what case 6 can and
-can't claim to demonstrate (see Limitations).
+reading attacker-controlled content might. Two other plausible adversary
+types are NOT tested here: no tool in this system (`search_flights_api`,
+`charge_payment_api`) is ever modeled as returning malicious output back to
+an agent, and no agent's own implementation deviates from its stated logic
+to intentionally exfiltrate data. Naming this precisely matters because it
+bounds what case 6 can and can't claim to demonstrate (see Limitations).
 
 **Defense-in-depth finding — stated as a limitation, not just an
 architecture note:** the design has two nominally independent enforcement
@@ -76,22 +75,23 @@ earlier, by the agent-layer token-grant check — because
 registry that step (b) reads, so on every token-mediated path in this
 harness the two checks would agree, and the token-grant check runs first
 and short-circuits before `policy.check()` is reached. A supplementary,
-off-path test constructed during development (Phase 5) — a token issued
-directly via `token.issue()` with a deliberately over-broad
-`allowed_fields`, bypassing `coordinator.issue_token()`'s normal scoping —
-did show step (b) independently denying a field the mis-issued token
-itself claimed to grant. That demonstrates step (b) is not vacuous by
-construction, but it sits outside the formal 8-case matrix and was not
-repeated across conditions or included in `results_table.md`. The honest
-claim this experiment supports is narrower than "the policy engine is a
-proven second layer": steps (a) and (c) are independently proven by the
-formal harness; step (b) specifically is *architecturally* independent of
-the token-grant check but *empirically* redundant with it on every path
-this harness's token issuance actually takes. A harness that could
-distinguish step (b)'s contribution would need a case where a
-legitimately-issued token is broader than what the receiving purpose
-should currently allow (e.g. a purpose whose field grant narrows
-mid-task) — no such case exists in the spec's matrix.
+off-path test constructed during development (see
+`docs/experiment-protocol.md` Section 3) — a token issued directly via
+`token.issue()` with a deliberately over-broad `allowed_fields`, bypassing
+`coordinator.issue_token()`'s normal scoping — did show step (b)
+independently denying a field the mis-issued token itself claimed to
+grant. That demonstrates step (b) is not vacuous by construction, but it
+sits outside the formal 8-case matrix and was not repeated across
+conditions or included in `results_table.md`. The honest claim this
+experiment supports is narrower than "the policy engine is a proven second
+layer": steps (a) and (c) are independently proven by the formal harness;
+step (b) specifically is *architecturally* independent of the token-grant
+check but *empirically* redundant with it on every path this harness's
+token issuance actually takes. A harness that could distinguish step (b)'s
+contribution would need a case where a legitimately-issued token is
+broader than what the receiving purpose should currently allow (e.g. a
+purpose whose field grant narrows mid-task) — no such case exists in the
+current 8-case matrix.
 
 **Case 6 nuance, stated plainly:** `role_based` also denies the injected
 request (`results_table.md`, case 6 row) — but for a materially different,
@@ -130,12 +130,13 @@ conversational state. `baselines/no_auth.py` (always allow) and
 approval concept) share `policy.check()`'s call signature so the harness
 can swap conditions without touching the request shape.
 
-**Test cases.** All 8 cases from the spec are structured `Case` objects
-(`experiments/cases.py`), each one or more `RequestStep`s executed under a
-shared `task_id`; a case's outcome is the AND of its steps (case 8's
-two-step workflow can't "complete" if either step is denied). Two cases
-needed a specific modeling decision, made explicit here because it affects
-what the results can claim:
+**Test cases.** All 8 cases are structured `Case` objects
+(`experiments/cases.py`; full design rationale in
+`docs/experiment-protocol.md` Section 2), each one or more `RequestStep`s
+executed under a shared `task_id`; a case's outcome is the AND of its
+steps (case 8's two-step workflow can't "complete" if either step is
+denied). Two cases needed a specific modeling decision, made explicit here
+because it affects what the results can claim:
 
 - **Case 5** ("agent attempts to forward protected fields to another
   agent") is modeled as the *coordinator* — which legitimately holds every
@@ -150,7 +151,13 @@ what the results can claim:
   during development because it couldn't produce this divergence — it
   would have been denied by the token-grant check under every condition
   with a field-set concept, telling us nothing about purpose-scoping
-  specifically.
+  specifically. **This result is a property of this specific
+  coordinator-to-recipient purpose model, not a general proof that every
+  RBAC design fails to express purpose-scoped forwarding.** A role-based
+  design that additionally checked a request's *target* purpose against
+  the recipient role (rather than only the acting role's own field access)
+  could plausibly deny this same case; role-based as implemented here
+  simply doesn't attempt that.
 - **Case 6** executes the real injection mechanism
   (`flight_search.attempt_injected_request`, reading the hardcoded
   `INJECTED_WEB_CONTENT` string and naively extracting the fields it
@@ -292,3 +299,30 @@ particularly the small scenario and the non-adaptive injection test, this
 should be read as evidence that the approach is implementable and
 measurable, not as evidence that it holds up against a motivated adversary
 or at production scale.
+
+## 7. Relationship to SAGA
+
+This project is independently inspired by SAGA's high-level framing of
+agent-to-agent authorization as an explicit, policy-mediated boundary
+rather than implicit trust, but does not reproduce, modify, benchmark, or
+formally extend SAGA's implementation, protocol, or evaluation. See the
+README's [Relationship to SAGA](../README.md#relationship-to-saga) section
+for the full discussion, including exactly which SAGA concepts motivated
+this prototype, how purpose/field/tool/approval/task constraints are
+modeled here (this project's own design, not SAGA's), and an explicit
+statement that there is no collaboration, supervision, endorsement, or
+affiliation with the SAGA authors or the NDS2 Lab.
+
+## References
+
+1. Georgios Syros, Anshuman Suri, Jacob Ginesin, Cristina Nita-Rotaru, and
+   Alina Oprea. "SAGA: A Security Architecture for Governing AI Agentic
+   Systems." *Network and Distributed System Security (NDSS) Symposium*,
+   2026. https://arxiv.org/abs/2504.21034 —
+   official implementation: https://github.com/gsiros/saga
+2. This repository's scenario and eight-case design record:
+   `docs/experiment-protocol.md`.
+3. This repository's generated evidence: `results/results_table.md`
+   (Correctness section, deterministic) and `results/raw/*.jsonl`
+   (regenerated locally; not tracked in git — see README's "Output and
+   reproducibility notes").

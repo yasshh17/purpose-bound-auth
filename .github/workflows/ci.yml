@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile / import-check all source
+        run: |
+          python3 -m py_compile agents/*.py auth/*.py baselines/*.py data/*.py \
+            experiments/*.py tests/*.py scripts/*.py
+          python3 -c "import agents.coordinator, agents.flight_search, agents.payment"
+          python3 -c "import auth.audit, auth.identity, auth.policy, auth.token"
+          python3 -c "import baselines.no_auth, baselines.role_based"
+          python3 -c "import data.user_profile"
+          python3 -c "import experiments.cases, experiments.measure, experiments.run_experiment"
+
+      - name: Run automated tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Run the full experiment (regenerates raw logs + results table)
+        run: python3 -m experiments.run_experiment && python3 -m experiments.measure
+
+      - name: Verify tracked results are not stale
+        run: python3 scripts/check_results_fresh.py
+
+      - name: Confirm no tracked generated caches
+        run: |
+          if git ls-files | grep -E '__pycache__|\.pyc$|\.pytest_cache|\.DS_Store'; then
+            echo "Generated cache files are tracked in git -- fix .gitignore" >&2
+            exit 1
+          fi
+          echo "OK: no generated caches are tracked."

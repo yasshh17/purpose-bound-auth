@@ -1,18 +1,6 @@
-"""Baseline 2: role-based only — checks agent role's static field/tool set,
-with no purpose or per-task field restriction and no approval gating.
-
-Same call signature as auth.policy.check() so run_experiment.py can swap
-conditions with one parameter. `requested_purpose` and `approvals` are
-accepted but deliberately ignored — that's the point of this baseline: it
-can't express "payment agent may access payment_token, but only after
-approval for this task" or "this field belongs to a different agent's
-purpose scope" — it only knows "does this role generally touch this
-field/tool," full stop. This is what makes the purpose-bound condition's
-advantage visible in the results table.
-
-Role == agent_id in this scenario (each agent has exactly one role), so
-this is keyed by agent_id directly rather than introducing a separate role
-layer that would just be an alias.
+"""Baseline: role-based only — static role field/tool set, no purpose or
+per-task concept, no approval gating. `requested_purpose` and `approvals`
+are accepted (to match auth.policy.check()'s signature) but ignored.
 """
 
 ROLE_FIELDS: dict[str, frozenset] = {

@@ -1,8 +1,4 @@
-"""Decision logging (allow/deny + reason), feeding the results table.
-
-Thin by design: one record shape, appended to an in-memory list. Phase 6's
-experiment harness drains this per condition into results/raw/*.jsonl.
-"""
+"""Decision logging (allow/deny + reason), feeding the results table."""
 
 import json
 import time

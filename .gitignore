@@ -1,3 +1,39 @@
+# Generated experiment output that is regenerated on every run (raw JSONL
+# logs carry a per-run wall-clock timestamp on every entry -- see
+# docs/experiment-protocol.md's "Stabilizing generated results" note and
+# README's Reproduction section). results/results_table.md IS committed;
+# only the raw per-decision logs underneath it are excluded.
+results/raw/
+
+# Python bytecode / cache
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+htmlcov/
+.coverage
+.coverage.*
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor / IDE metadata
+.vscode/
+.idea/
+*.swp
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env
+.env.*
+
+# Local tooling state (not part of this project's source or docs)
 .serena/

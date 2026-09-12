@@ -1,10 +1,7 @@
-"""Runs all 8 cases x 3 conditions x N repeats, logging every decision via
-auth.audit and asserting actual == expected for each (case, condition).
-
-A mismatch here means the harness has a bug, not that the finding changed —
-every expected value was already hand-verified directly against
-auth.policy / auth.token / the agents in Phases 2-5. So this raises
-AssertionError immediately rather than collecting failures to report later.
+"""Runs all 8 cases x 3 conditions x N repeats, logging every decision and
+asserting actual == expected for each (case, condition). A mismatch means
+the harness has a bug, not that the finding changed — see
+docs/experiment-protocol.md.
 """
 
 import pathlib
@@ -66,7 +63,6 @@ def _execute_step_baseline(step, task_id, approvals, module, audit_log):
 
 
 def run_case(case, condition, task_id, audit_log):
-    """Run one case's steps under one condition/task_id. Returns (decision, reason)."""
     approvals = ApprovalRegistry()
     overall_decision = True
     last_reason = None
@@ -85,8 +81,6 @@ def run_case(case, condition, task_id, audit_log):
 
 
 def run_cases(cases, conditions, repeats, run_tag):
-    """Core runner: executes every (case, condition, repeat), asserting actual
-    == expected. Returns {condition: AuditLog}. Does not touch disk."""
     audit_logs = {condition: AuditLog() for condition in conditions}
     for case in cases:
         for condition in conditions:
